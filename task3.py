@@ -21,7 +21,7 @@ MAZE = finalMaze(20, 1, 20, 33)
 """MICE CONFIG"""
 POPULATION_SIZE = 100
 N_STEPS = 1750
-MUTATION_CHANCE = 0.7
+MUTATION_CHANCE = 0.4
 NUM_MUTATIONS = int(N_STEPS*0.65)
 EPOCHS = 1000
 
@@ -41,16 +41,25 @@ class Mouse():
         self._start_pos = start_pos
         self._found_goal = found_goal
         self._path = MAZE.copy()
+        self._trail = []
         self._camper = 0
         self._moves = [random.choice([Moves.NO_MOVE, Moves.UP, Moves.DOWN, Moves.LEFT, Moves.RIGHT]) for _ in range(self._n_steps)]
     
+
     @property
     def camper(self) -> int:
         return self._camper
     
-    def add_camper(self):
+    def inc_camper(self):
         self._camper += 1
     
+    @property
+    def trail(self) -> List[Tuple[int, int]]:
+        return self._trail 
+       
+    def add_to_trail(self, score: int):
+        self._trail.append(score)
+        
     @property
     def path(self) -> List[Tuple[int, int]]:
         return self._path
@@ -104,7 +113,15 @@ class Mouse():
         self._fitness = 0
 
     def set_new_fitness(self, goal: Tuple[int, int]):
-        self._fitness = math.sqrt((self._current_pos[0] - goal[0])**2 + (self._current_pos[1] - goal[1])**2), self.camper
+        if self.camper > 25:
+            self.camper_fitness()
+            return
+        
+        if math.sqrt((self._current_pos[0] - goal[0])**2 + (self._current_pos[1] - goal[1])**2) not in self.trail:
+            self._fitness = math.sqrt((self._current_pos[0] - goal[0])**2 + (self._current_pos[1] - goal[1])**2)
+            self.trail.append(math.sqrt((self._current_pos[0] - goal[0])**2 + (self._current_pos[1] - goal[1])**2))
+        else:
+            self.inc_camper()
 
         
     def get_new_move(self, index: int) -> Tuple[int, int]:
@@ -147,6 +164,8 @@ def mutate(mouse: Mouse, num_mutations: int):
 
 def crossover(mice: List[Mouse], n_steps: int, population_size: int, mutation_chance: int, origin: Tuple[int, int], num_mutations: int) -> List[Mouse]:
     sorted_mice = sorted(mice, key=lambda x:x.fitness, reverse=False)
+    sorted_mice = sorted(mice, key=lambda x:x.camper, reverse=False)
+    
     top_mice = sorted_mice[:100]
     
     new_generation = []
@@ -164,7 +183,7 @@ def crossover(mice: List[Mouse], n_steps: int, population_size: int, mutation_ch
         new_generation.append(baby_mouse)
 
     #lägga till så att för varje epoch går de extra steg, detta måste göras parallellt med att mössen får nya moves varje epok
-    return top_mice[:25] + new_generation
+    return top_mice + new_generation
 
 def fill_maze(mouse: Mouse):
     for coordinate in mouse.path:
@@ -175,9 +194,9 @@ def main():
     maze = MAZE.copy()
 
     population = [Mouse(name = names.get_full_name(),n_steps=N_STEPS ,current_pos=ORIGIN, start_pos=ORIGIN) for _ in range(POPULATION_SIZE)]
+    
     for epoch in range(EPOCHS):
-        
-        temp = []
+    
         walk_maze(population, maze, N_STEPS)
         
         for mouse in population:
@@ -186,8 +205,10 @@ def main():
         if population[0].fitness == 0:
             fill_maze(population[0])
             winner_winner_chicken_dinner.append(population[0])
-            
             break
+        
+        
+        
         if epoch % 10 == 0:
             print(f"\nbest mice of generation {epoch}:\n{population[0].name} {population[0].fitness} {population[0].current_pos} {population[0].camper}")
             for row in population[0].path:
