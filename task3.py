@@ -6,18 +6,24 @@ import math
 import random
 import time
 import names
+import ctypes as c
 from typing import Tuple, List
 from finalMaze import finalMaze
-from zeroMaze import zeroMaze
+from somemaze import someMaze
+import os
 
 "MAZE CONFIG"
 ORIGIN = (20, 1)
 GOAL = (20, 33)
 MAZE = finalMaze(20, 1, 20, 33)
 
+#ORIGIN = (14,6)
+#GOAL = (1,15)
+#MAZE =someMaze(14,6,1,15)
+
 """MICE CONFIG"""
 POPULATION_SIZE = 100
-N_STEPS = 1500
+N_STEPS = 1750
 MUTATION_CHANCE = 0.4
 NUM_MUTATIONS = int(N_STEPS*0.65)
 EPOCHS = 1000
@@ -98,13 +104,18 @@ class Mouse():
 
     def set_new_fitness(self, goal: Tuple[int, int]):
         """Fitness calculated with the help of the euclidan distance, math formula: d = √[ (x_2 - x_1)^2 + (y_2 - y_1)^2]"""
+        clib = c.CDLL(os.getcwd()+"/calc.so")
+        euclidianfunc = clib.euclidianDistance
+        euclidianfunc.argtypes = [c.c_int for _ in range(4)]
+        euclidianfunc.restype = c.c_float
+        
         if self.camper > 25:
             self.camper_fitness()
             return
         
-        if math.sqrt((self._current_pos[0] - goal[0])**2 + (self._current_pos[1] - goal[1])**2) not in self.trail:
-            self._fitness = math.sqrt((self._current_pos[0] - goal[0])**2 + (self._current_pos[1] - goal[1])**2)
-            self.trail.append(math.sqrt((self._current_pos[0] - goal[0])**2 + (self._current_pos[1] - goal[1])**2))
+        if euclidianfunc(self._current_pos[0], goal[0], self._current_pos[1], goal[1]) not in self.trail:
+            self._fitness = euclidianfunc(self._current_pos[0], goal[0], self._current_pos[1], goal[1])
+            self.trail.append(euclidianfunc(self._current_pos[0], goal[0], self._current_pos[1], goal[1]))
         else:
             self.inc_camper()
 
@@ -196,22 +207,22 @@ def main():
         if epoch % 10 == 0:
             print(f"\nbest mice of generation {epoch}:\n{population[0].name} {population[0].fitness} {population[0].current_pos} {population[0].camper}")
             for row in population[0].path:
-                thing = [str(int(elem)) for elem in row]
-                thing = [elem if elem != '1' else '#' for elem in thing]
-                thing = [elem if elem != '0' else ' ' for elem in thing]
-                thing = [elem if elem != '6' else '.' for elem in thing]
-                thing = [elem if elem != '9' else '@' for elem in thing]
-                print(' '.join(thing))  
+                temp_row = [str(int(elem)) for elem in row]
+                temp_row = [struct if struct != '1' else '#' for struct in temp_row]
+                temp_row = [struct if struct != '0' else ' ' for struct in temp_row]
+                temp_row = [struct if struct != '6' else '*' for struct in temp_row]
+                temp_row = [struct if struct != '9' else '@' for struct in temp_row]
+                print(' '.join(temp_row))  
             print(f"Current config:\ncurrent population size: {POPULATION_SIZE}, current steps: {N_STEPS}, current mutations {NUM_MUTATIONS}, current mutation chance {MUTATION_CHANCE}")
     
     
     print(f"\nAnd the winner is.... \n{winner_winner_chicken_dinner[0].name}\n{winner_winner_chicken_dinner[0].fitness}\n{winner_winner_chicken_dinner[0].current_pos}")
     for row in winner_winner_chicken_dinner[0].path:
-        thing = [str(int(elem)) for elem in row]
-        thing = [elem if elem != '1' else '#' for elem in thing]
-        thing = [elem if elem != '0' else ' ' for elem in thing]
-        thing = [elem if elem != '6' else '.' for elem in thing]
-        print(' '.join(thing))         
+        temp_row = [str(int(elem)) for elem in row]
+        temp_row = [struct if struct != '1' else '#' for struct in temp_row]
+        temp_row = [struct if struct != '0' else ' ' for struct in temp_row]
+        temp_row = [struct if struct != '6' else '.' for struct in temp_row]
+        print(' '.join(temp_row))         
 
 main()
     
